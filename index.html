@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e0e0f; --bg2: #161618; --bg3: #1e1e21; --bg4: #26262a;
+    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+    --text: #f0efe8; --muted: #888784;
+    --accent: #c8f06a; --accent2: #a8d452;
+    --danger: #ff6b6b; --warn: #ffb347; --info: #6bbaff; --success: #6bf0a0;
+    --radius: 12px; --radius-sm: 8px;
+  }
+  body { font-family: 'Manrope', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; line-height: 1.6; }
+
+  header { padding: 1.5rem 2.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; }
+  .logo { width: 32px; height: 32px; background: var(--accent); border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .logo svg { width: 18px; height: 18px; }
+  header h1 { font-family: 'Instrument Serif', serif; font-size: 1.3rem; font-weight: 400; }
+  .srv-status { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
+  .dot.ok { background: var(--success); }
+  .dot.err { background: var(--danger); }
+
+  main { max-width: 920px; margin: 0 auto; padding: 2rem 2rem 4rem; }
+
+  #upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 3rem 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+  #upload-zone:hover, #upload-zone.drag { border-color: var(--accent); background: rgba(200,240,106,0.04); }
+  #upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .up-icon { width: 44px; height: 44px; background: var(--bg3); border: 1px solid var(--border2); border-radius: var(--radius); margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; }
+  .up-icon svg { width: 20px; height: 20px; stroke: var(--muted); }
+  #upload-zone h2 { font-size: 1rem; font-weight: 500; margin-bottom: 0.35rem; }
+  #upload-zone p { font-size: 13px; color: var(--muted); }
+  .pills { display: flex; gap: 8px; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
+  .pill { font-family: 'DM Mono', monospace; font-size: 11px; background: var(--bg3); border: 1px solid var(--border); color: var(--muted); padding: 3px 9px; border-radius: 20px; }
+
+  #sbar { display: none; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.4rem; margin-top: 1rem; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .fbadge { display: flex; align-items: center; gap: 7px; background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 11px; font-size: 13px; }
+  .fbadge svg { width: 13px; height: 13px; stroke: var(--accent); flex-shrink: 0; }
+  .fld { display: flex; align-items: center; gap: 7px; }
+  .fld label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .fld input { background: var(--bg3); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 13px; font-family: 'DM Mono', monospace; outline: none; }
+  .fld input:focus { border-color: var(--border2); }
+  #mi { width: 150px; } #xi { width: 65px; }
+  .btn-go { background: var(--accent); color: #0e0e0f; border: none; border-radius: var(--radius-sm); padding: 7px 18px; font-size: 13px; font-weight: 600; font-family: 'Manrope', sans-serif; cursor: pointer; transition: background 0.15s, transform 0.1s; margin-left: auto; }
+  .btn-go:hover { background: var(--accent2); }
+  .btn-go:active { transform: scale(0.97); }
+  .btn-go:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  #st { display: none; margin-top: 1rem; padding: 0.9rem 1.4rem; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); font-size: 13px; color: var(--muted); align-items: center; gap: 10px; }
+  .spin { width: 15px; height: 15px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #st.err { border-color: rgba(255,107,107,0.25); color: var(--danger); }
+  #st.err .spin { display: none; }
+
+  #res { display: none; margin-top: 2rem; }
+
+  .sgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1.2rem; }
+  .sc { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1.1rem; }
+  .sc .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+  .sc .v { font-family: 'Instrument Serif', serif; font-size: 1.7rem; line-height: 1; }
+  .sc .s { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .mbanner { border-radius: var(--radius); padding: 1.1rem 1.4rem; margin-bottom: 1.2rem; border: 1px solid; display: flex; align-items: center; gap: 12px; }
+  .mi2 { font-size: 1.8rem; line-height: 1; }
+  .mt2 { font-family: 'Instrument Serif', serif; font-size: 1.2rem; }
+  .ms { font-size: 12px; opacity: 0.65; }
+  .mp2 { background: rgba(107,240,160,0.07); border-color: rgba(107,240,160,0.2); color: var(--success); }
+  .mn2 { background: rgba(136,135,132,0.07); border-color: rgba(136,135,132,0.2); color: var(--muted); }
+  .mt3 { background: rgba(255,179,71,0.07);  border-color: rgba(255,179,71,0.2);  color: var(--warn); }
+  .mc2 { background: rgba(255,107,107,0.07); border-color: rgba(255,107,107,0.2); color: var(--danger); }
+
+  .tcol { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  @media (max-width: 600px) { .tcol { grid-template-columns: 1fr; } }
+
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.3rem; margin-bottom: 10px; }
+  .card h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.9rem; font-weight: 500; }
+
+  .pr { margin-bottom: 0.9rem; }
+  .pr:last-child { margin-bottom: 0; }
+  .ph { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .av { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; flex-shrink: 0; }
+  .av0 { background: rgba(200,240,106,0.15); color: var(--accent); }
+  .av1 { background: rgba(107,186,255,0.15); color: var(--info); }
+  .av2 { background: rgba(255,107,107,0.15); color: var(--danger); }
+  .av3 { background: rgba(255,179,71,0.15);  color: var(--warn); }
+  .pn { font-size: 13px; font-weight: 500; }
+  .pm { font-size: 12px; color: var(--muted); margin-left: auto; text-align: right; max-width: 52%; line-height: 1.3; }
+  .bt { height: 3px; background: var(--bg4); border-radius: 2px; overflow: hidden; }
+  .bf { height: 100%; border-radius: 2px; transition: width 0.9s cubic-bezier(0.16,1,0.3,1); }
+  .bf0 { background: var(--accent); } .bf1 { background: var(--info); } .bf2 { background: var(--danger); } .bf3 { background: var(--warn); }
+  .pst { display: flex; gap: 10px; margin-top: 4px; }
+  .pst span { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+  .tlist { display: flex; flex-direction: column; gap: 5px; }
+  .ti { display: flex; align-items: center; gap: 7px; font-size: 13px; padding: 6px 9px; background: var(--bg3); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .td { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+  .ci { padding: 9px 11px; border-radius: var(--radius-sm); margin-bottom: 7px; border-left: 2px solid; }
+  .ci:last-child { margin-bottom: 0; }
+  .cil { border-color: var(--warn);   background: rgba(255,179,71,0.05); }
+  .cim { border-color: var(--warn);   background: rgba(255,179,71,0.09); }
+  .cih { border-color: var(--danger); background: rgba(255,107,107,0.08); }
+  .cd { font-size: 13px; margin-bottom: 4px; }
+  .cm3 { display: flex; gap: 7px; align-items: center; }
+  .cb { font-size: 11px; padding: 2px 7px; border-radius: 10px; font-family: 'DM Mono', monospace; }
+  .cbl { background: rgba(255,179,71,0.15); color: var(--warn); }
+  .cbm { background: rgba(255,179,71,0.2);  color: var(--warn); }
+  .cbh { background: rgba(255,107,107,0.2); color: var(--danger); }
+  .cp { font-size: 11px; color: var(--muted); }
+
+  .mlist { display: flex; flex-direction: column; gap: 5px; }
+  .mitem { font-size: 13px; padding: 7px 9px; background: var(--bg3); border-radius: var(--radius-sm); border: 1px solid var(--border); display: flex; gap: 8px; }
+  .mn3 { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); flex-shrink: 0; padding-top: 1px; }
+
+  .concl { background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 1.4rem; margin-bottom: 10px; }
+  .concl .cl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.7rem; }
+  .concl p { font-family: 'Instrument Serif', serif; font-size: 1.1rem; line-height: 1.7; font-style: italic; }
+
+  .noc { font-size: 13px; color: var(--success); display: flex; align-items: center; gap: 6px; }
+  .noc::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--success); display: inline-block; }
+
+  .quotes-block { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .quote { font-size: 12px; padding: 6px 10px; background: var(--bg4); border-radius: var(--radius-sm); line-height: 1.5; }
+  .qauthor { font-family: 'DM Mono', monospace; color: var(--muted); margin-right: 4px; }
+  .qtext { color: var(--text); opacity: 0.85; }
+
+  .breset { display: block; margin: 2rem 0 0 auto; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: var(--radius-sm); padding: 6px 14px; font-size: 12px; cursor: pointer; font-family: 'Manrope', sans-serif; transition: border-color 0.15s, color 0.15s; }
+  .breset:hover { border-color: var(--border2); color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 18 18" fill="none"><path d="M2 3.5h14M2 7h9M2 10.5h11M2 14h6" stroke="#0e0e0f" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </div>
+  <h1>Chat Analyzer</h1>
+  <div class="srv-status">
+    <div class="dot" id="dot"></div>
+    <span id="slbl">проверяю...</span>
+  </div>
+</header>
+
+<main>
+  <div id="upload-zone">
+    <input type="file" id="fi" accept=".json,.txt">
+    <div class="up-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12M8 8l4-4 4 4"/>
+      </svg>
+    </div>
+    <h2>Загрузи файл переписки</h2>
+    <p>Перетащи сюда или нажми для выбора</p>
+    <div class="pills">
+      <span class="pill">Telegram .json</span>
+      <span class="pill">WhatsApp .txt</span>
+      <span class="pill">plain .txt</span>
+    </div>
+  </div>
+
+  <div id="sbar">
+    <div class="fbadge">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+      </svg>
+      <span id="fn">file</span>
+    </div>
+    <div class="fld"><label>Модель</label><input type="text" id="mi" value="gemma3:4b"></div>
+    <div class="fld"><label>Сообщений</label><input type="number" id="xi" value="150" min="50" max="800"></div>
+    <button class="btn-go" id="brun">Анализировать</button>
+  </div>
+
+  <div id="st"><div class="spin"></div><span id="stxt">...</span></div>
+  <div id="res"></div>
+</main>
+
+<script>
+const API = '';
+let curFile = null;
+
+async function checkSrv() {
+  const dot = document.getElementById('dot'), lbl = document.getElementById('slbl');
+  try {
+    const r = await fetch(API + '/health');
+    const d = await r.json();
+    if (d.ok) {
+      dot.className = 'dot ok';
+      lbl.textContent = 'сервер работает' + (d.models.length ? ` · ${d.models.length} моделей` : '');
+      if (d.models.length) document.getElementById('mi').value = d.models[0].split(':').slice(0,2).join(':');
+    } else throw 0;
+  } catch { dot.className = 'dot err'; lbl.textContent = 'сервер не запущен — python server.py'; }
+}
+checkSrv(); setInterval(checkSrv, 10000);
+
+const setSt = (msg, err) => {
+  const el = document.getElementById('st');
+  el.style.display = 'flex'; el.className = err ? 'err' : '';
+  document.getElementById('stxt').textContent = msg;
+};
+const hideSt = () => document.getElementById('st').style.display = 'none';
+
+document.getElementById('fi').addEventListener('change', function() {
+  const f = this.files[0]; if (!f) return;
+  curFile = f;
+  document.getElementById('fn').textContent = f.name;
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('sbar').style.display = 'flex';
+  hideSt();
+});
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag');
+  if (!e.dataTransfer.files[0]) return;
+  document.getElementById('fi').files = e.dataTransfer.files;
+  document.getElementById('fi').dispatchEvent(new Event('change'));
+});
+
+document.getElementById('brun').addEventListener('click', async () => {
+  if (!curFile) return;
+  const model = document.getElementById('mi').value.trim() || 'gemma3:4b';
+  const max   = document.getElementById('xi').value || '150';
+  const btn   = document.getElementById('brun');
+  btn.disabled = true;
+  document.getElementById('res').style.display = 'none';
+  setSt(`Отправляю на сервер → ${model}... подожди 30–90 сек`, false);
+  const form = new FormData();
+  form.append('file', curFile);
+  form.append('model', model);
+  form.append('max_msgs', max);
+  try {
+    const r = await fetch(API + '/analyze', { method: 'POST', body: form });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Ошибка сервера');
+    hideSt();
+    render(d.stats, d.analysis);
+  } catch(e) { setSt('Ошибка: ' + e.message, true); }
+  finally { btn.disabled = false; }
+});
+
+const mCfg = {
+  'позитивное':  { cls:'mp2', icon:'☀', lbl:'Позитивное' },
+  'нейтральное': { cls:'mn2', icon:'◎', lbl:'Нейтральное' },
+  'напряжённое': { cls:'mt3', icon:'⚡', lbl:'Напряжённое' },
+  'конфликтное': { cls:'mc2', icon:'⚠', lbl:'Конфликтное' },
+};
+
+function ini(n) { return n.split(/[\s_]/).map(w=>w[0]?.toUpperCase()||'').join('').slice(0,2)||'?'; }
+
+function render(s, a) {
+  const authors = s.authors;
+  const mood = mCfg[a.общее_настроение] || { cls:'mn2', icon:'◎', lbl: a.общее_настроение||'—' };
+  const conflicts = a.конфликты || [], moments = a.ключевые_моменты || [], topics = a.основные_темы || [];
+  let h = '';
+
+  h += `<div class="sgrid">
+    <div class="sc"><div class="l">Сообщений</div><div class="v">${s.total.toLocaleString()}</div><div class="s">всего</div></div>
+    <div class="sc"><div class="l">Участники</div><div class="v">${authors.length}</div><div class="s">${authors.join(', ')}</div></div>
+    <div class="sc"><div class="l">Слов</div><div class="v">${Object.values(s.words).reduce((a,b)=>a+b,0).toLocaleString()}</div><div class="s">написано</div></div>`;
+  const top = authors.reduce((a,b)=>s.counts[a]>s.counts[b]?a:b);
+  h += `<div class="sc"><div class="l">Активнее</div><div class="v" style="font-size:1.15rem;padding-top:6px">${top}</div><div class="s">${s.share[top]}%</div></div></div>`;
+
+  h += `<div class="mbanner ${mood.cls}"><div class="mi2">${mood.icon}</div><div><div class="mt2">${mood.lbl}</div><div class="ms">общее настроение переписки</div></div></div>`;
+
+  h += `<div class="tcol">`;
+
+  h += `<div class="card"><h3>Участники</h3>`;
+  authors.forEach((au, i) => {
+    const md = (a.настроение_по_участникам||{})[au]||'—';
+    h += `<div class="pr">
+      <div class="ph"><div class="av av${i%4}">${ini(au)}</div><span class="pn">${au}</span><span class="pm">${md}</span></div>
+      <div class="bt"><div class="bf bf${i%4}" style="width:0%" data-w="${s.share[au]}%"></div></div>
+      <div class="pst"><span>${s.counts[au]} сообщ.</span><span>${s.words[au]} слов</span><span>${s.share[au]}%</span></div>
+    </div>`;
+  });
+  h += `</div>`;
+
+  h += `<div class="card"><h3>Темы</h3><div class="tlist">`;
+  if (topics.length) topics.forEach(t => { h += `<div class="ti"><div class="td"></div>${t}</div>`; });
+  else h += `<span style="font-size:13px;color:var(--muted)">Не определены</span>`;
+  h += `</div></div></div>`;
+
+  h += `<div class="card"><h3>Конфликты и напряжение</h3>`;
+  if (!conflicts.length) {
+    h += `<div class="noc">Конфликтов не обнаружено</div>`;
+  } else {
+    conflicts.forEach(c => {
+      const lv = c.интенсивность||'низкая';
+      const cc = lv==='высокая'?'cih':lv==='средняя'?'cim':'cil';
+      const bc = lv==='высокая'?'cbh':lv==='средняя'?'cbm':'cbl';
+      const quotes = (c.цитаты||[]).map(q =>
+        `<div class="quote"><span class="qauthor">${q.автор}:</span> <span class="qtext">"${q.текст}"</span></div>`
+      ).join('');
+      h += `<div class="ci ${cc}"><div class="cd">${c.описание}</div><div class="cm3"><span class="cb ${bc}">${lv}</span><span class="cp">${(c.участники||[]).join(' · ')}</span></div>${quotes ? `<div class="quotes-block">${quotes}</div>` : ''}</div>`;
+    });
+  }
+  h += `</div>`;
+
+  if (moments.length) {
+    h += `<div class="card"><h3>Ключевые моменты</h3><div class="mlist">`;
+    moments.forEach((m, i) => {
+      const isObj = typeof m === 'object' && m !== null;
+      const desc = isObj ? m.описание : m;
+      const quotes = isObj ? (m.цитаты||[]).map(q =>
+        `<div class="quote"><span class="qauthor">${q.автор}:</span> <span class="qtext">"${q.текст}"</span></div>`
+      ).join('') : '';
+      h += `<div class="mitem"><span class="mn3">0${i+1}</span><div><div>${desc}</div>${quotes ? `<div class="quotes-block">${quotes}</div>` : ''}</div></div>`;
+    });
+    h += `</div></div>`;
+  }
+
+  if (a.общий_вывод) {
+    h += `<div class="concl"><div class="cl">Итог</div><p>${a.общий_вывод}</p></div>`;
+  }
+
+  h += `<button class="breset" onclick="reset()">← Новый анализ</button>`;
+
+  const el = document.getElementById('res');
+  el.innerHTML = h; el.style.display = 'block';
+  setTimeout(() => {
+    el.querySelectorAll('.bf').forEach(b => {
+      const w = b.dataset.w;
+      requestAnimationFrame(() => requestAnimationFrame(() => { b.style.width = w; }));
+    });
+  }, 60);
+}
+
+function reset() {
+  curFile = null;
+  document.getElementById('res').style.display = 'none';
+  document.getElementById('res').innerHTML = '';
+  document.getElementById('sbar').style.display = 'none';
+  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('fi').value = '';
+  hideSt();
+}
+</script>
+</body>
+</html>

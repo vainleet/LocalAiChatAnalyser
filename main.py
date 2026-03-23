@@ -121,15 +121,22 @@ def build_sample(messages: list[dict], max_msgs: int) -> str:
     )
 
 
-PROMPT = """Analyze the conversation. Respond ONLY with valid JSON without explanations or markdown.
+PROMPT = """Read the conversation below and write a short, natural characterization of it.
+Respond ONLY with a valid JSON object, no markdown, no extra text.
 
-{{"overall_sentiment":"positive/neutral/tense/conflict","sentiment_by_participant":{{"NAME":"tone description"}},"main_topics":["topic"],"conflicts":[{{"description":"what happened","participants":["name"],"intensity":"low/medium/high","quotes":[{{"author":"name","text":"exact quote from conversation"}}]}}],"key_moments":[{{"description":"what happened","quotes":[{{"author":"name","text":"exact quote"}}]}}],"summary":"2-3 sentences about the dynamics"}}
+Describe the chat as you would to someone who hasn't read it — what is it about,
+what is the vibe, how do the participants communicate, what are the main themes.
+Be honest and observational. No need to focus on conflicts specifically — just describe what you see.
 
-Rules:
-- Use EXACT message text in quotes, do not paraphrase
-- For each conflict include 2-4 quotes illustrating it
-- For key moments include 1-2 quotes
-- If no conflicts — return []
+Return this JSON structure:
+{{
+  "summary": "3-5 sentences describing the overall character of this conversation — topics, mood, communication style, dynamics",
+  "topics": ["main topic 1", "main topic 2", "main topic 3"],
+  "vibe": "one short phrase describing the general atmosphere (e.g. friendly and casual, tense and brief, warm but chaotic)",
+  "participants": {{
+    "NAME": "1-2 sentences about how this person communicates in the chat"
+  }}
+}}
 
 CONVERSATION:
 {chat_text}"""
@@ -139,7 +146,7 @@ def analyze(chat_text: str, model: str) -> dict:
     response = ollama.chat(
         model=model,
         messages=[{"role": "user", "content": PROMPT.format(chat_text=chat_text)}],
-        options={"temperature": 0.1, "num_predict": 2048, "num_ctx": 8192},
+        options={"temperature": 0.4, "num_predict": 1024, "num_ctx": 8192},
     )
     raw = response.message.content.strip()
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
@@ -182,7 +189,7 @@ def analyze_route():
 
     file = request.files["file"]
     model = request.form.get("model", DEFAULT_MODEL).strip() or DEFAULT_MODEL
-    max_msgs = int(request.form.get("max_msgs", 150))
+    max_msgs = int(request.form.get("max_msgs", 300))
 
     try:
         text = file.read().decode("utf-8")
